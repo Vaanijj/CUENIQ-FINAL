@@ -12,6 +12,9 @@ import struct
 import sqlite3
 import threading
 import time
+import hmac
+import hashlib
+import base64
 import urllib.parse
 from datetime import datetime
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -31,12 +34,80 @@ from app.services.analytics_service import aggregate_shots
 
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 DB_PATH = os.path.join(BASE_DIR, "cueiq.db")
+SECRET_KEY = os.environ.get("SECRET_KEY", "cueiq-quantum-secret-key-2026")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _hash_password(password: str, salt: Optional[str] = None) -> str:
+    salt = salt or uuid.uuid4().hex
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100_000)
+    return f"{salt}${dk.hex()}"
+
+
+def _verify_password(plain: str, stored: str) -> bool:
+    if "$" not in stored:
+        return False
+    salt, _ = stored.split("$", 1)
+    return hmac.compare_digest(_hash_password(plain, salt), stored)
+
+
+def _create_jwt(user_id: str, email: str) -> str:
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).decode().rstrip("=")
+    payload = base64.urlsafe_b64encode(
+        json.dumps({"sub": user_id, "email": email, "iat": int(time.time())}).encode()
+    ).decode().rstrip("=")
+    sig_input = f"{header}.{payload}".encode()
+    sig = base64.urlsafe_b64encode(
+        hmac.new(SECRET_KEY.encode(), sig_input, hashlib.sha256).digest()
+    ).decode().rstrip("=")
+    return f"{header}.{payload}.{sig}"
+
+
+def _decode_jwt(token: str) -> Optional[Dict[str, Any]]:
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        header, payload, sig = parts
+        sig_input = f"{header}.{payload}".encode()
+        expected_sig = base64.urlsafe_b64encode(
+            hmac.new(SECRET_KEY.encode(), sig_input, hashlib.sha256).digest()
+        ).decode().rstrip("=")
+        if not hmac.compare_digest(sig, expected_sig):
+            return None
+        pad = "=" * ((4 - len(payload) % 4) % 4)
+        return json.loads(base64.urlsafe_b64decode(payload + pad).decode("utf-8"))
+    except Exception:
+        return None
 
 
 def init_sqlite_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE,
+            hashed_password TEXT,
+            display_name TEXT,
+            created_at TEXT
+        )
+        """
+    )
+    # Seed default demo user so instant demo sign-in works out of the box
+    demo_exists = c.execute("SELECT id FROM users WHERE email=?", ("demo@cueiq.ai",)).fetchone()
+    if not demo_exists:
+        c.execute(
+            "INSERT INTO users VALUES (?,?,?,?,?)",
+            (
+                "user-demo-01",
+                "demo@cueiq.ai",
+                _hash_password("cueiq2026"),
+                "Pro Analyst (Demo)",
+                datetime.utcnow().isoformat(),
+            ),
+        )
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS matches (
@@ -485,6 +556,24 @@ class CueIQRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/health":
             return self._send_json(200, {"status": "healthy", "service": "cue-iq", "version": "1.0.0"})
 
+        if path == "/api/auth/me":
+            auth_h = self.headers.get("Authorization", "")
+            if not auth_h.startswith("Bearer "):
+                return self._send_json(401, {"detail": "Not authenticated"})
+            claims = _decode_jwt(auth_h[7:].strip())
+            if not claims:
+                return self._send_json(401, {"detail": "Invalid or expired token"})
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            u = c.execute("SELECT id, email, display_name, created_at FROM users WHERE id=?", (claims.get("sub"),)).fetchone()
+            conn.close()
+            if not u:
+                return self._send_json(401, {"detail": "User not found"})
+            return self._send_json(
+                200,
+                {"id": u[0], "email": u[1], "display_name": u[2], "created_at": u[3]},
+            )
+
         if path == "/api/matches/sample":
             return self._send_json(200, generate_sample_match())
 
@@ -659,6 +748,66 @@ class CueIQRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path.rstrip("/")
         length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(length) if length > 0 else b""
+
+        if path == "/api/auth/register":
+            try:
+                req = json.loads(body.decode("utf-8"))
+            except Exception:
+                return self._send_json(400, {"detail": "Invalid JSON"})
+            email = (req.get("email") or "").strip().lower()
+            password = req.get("password") or ""
+            display_name = (req.get("display_name") or "").strip() or email.split("@")[0]
+            if not email or "@" not in email or len(password) < 4:
+                return self._send_json(400, {"detail": "Valid email and password (min 4 chars) required."})
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            exists = c.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+            if exists:
+                conn.close()
+                return self._send_json(400, {"detail": "An account with this email is already registered."})
+            uid = str(uuid.uuid4())
+            now_iso = datetime.utcnow().isoformat()
+            c.execute(
+                "INSERT INTO users VALUES (?,?,?,?,?)",
+                (uid, email, _hash_password(password), display_name, now_iso),
+            )
+            conn.commit()
+            conn.close()
+            token = _create_jwt(uid, email)
+            return self._send_json(
+                200,
+                {
+                    "access_token": token,
+                    "token_type": "bearer",
+                    "user": {"id": uid, "email": email, "display_name": display_name, "created_at": now_iso},
+                },
+            )
+
+        if path == "/api/auth/login":
+            try:
+                req = json.loads(body.decode("utf-8"))
+            except Exception:
+                return self._send_json(400, {"detail": "Invalid JSON"})
+            email = (req.get("email") or "").strip().lower()
+            password = req.get("password") or ""
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            u = c.execute(
+                "SELECT id, email, hashed_password, display_name, created_at FROM users WHERE email=?",
+                (email,),
+            ).fetchone()
+            conn.close()
+            if not u or not _verify_password(password, u[2]):
+                return self._send_json(401, {"detail": "Invalid email or password."})
+            token = _create_jwt(u[0], u[1])
+            return self._send_json(
+                200,
+                {
+                    "access_token": token,
+                    "token_type": "bearer",
+                    "user": {"id": u[0], "email": u[1], "display_name": u[3], "created_at": u[4]},
+                },
+            )
 
         if path == "/api/matches/upload":
             ctype = self.headers.get("Content-Type", "")

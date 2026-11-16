@@ -1,17 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { getStoredUser, api, type UserProfile } from '@/lib/api';
 import {
   Activity,
   BarChart3,
   Clock,
   Compass,
+  LogIn,
+  LogOut,
   Menu,
   MessageSquare,
   PlayCircle,
   UploadCloud,
+  UserCheck,
   X,
 } from 'lucide-react';
 
@@ -27,6 +31,18 @@ const NAV_ITEMS = [
 export default function Navigation() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const sync = () => setUser(getStoredUser());
+    sync();
+    window.addEventListener('cueiq-auth-change', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('cueiq-auth-change', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full bg-[#030407]/85 backdrop-blur-2xl border-b border-white/[0.08]">
@@ -77,8 +93,38 @@ export default function Navigation() {
           })}
         </nav>
 
-        {/* Quick CTA */}
-        <div className="hidden sm:flex items-center gap-3">
+        {/* Auth Status & Quick CTA */}
+        <div className="hidden sm:flex items-center gap-2.5">
+          {user ? (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/auth"
+                className="px-3 py-1.5 rounded-full text-xs font-mono bg-white/[0.04] border border-cyan-400/35 text-slate-200 flex items-center gap-1.5 hover:border-[#00F0FF]"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-[#00F0FF]" />
+                <span className="max-w-[130px] truncate">
+                  {user.display_name || user.email}
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => api.auth.logout()}
+                className="p-1.5 rounded-full text-slate-400 hover:text-rose-400 hover:bg-white/5 transition-colors"
+                title="Sign Out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/auth"
+              className="px-3.5 py-1.5 rounded-full text-xs font-mono uppercase tracking-wider text-slate-200 border border-white/15 hover:border-[#00F0FF]/60 flex items-center gap-1.5 transition-all"
+            >
+              <LogIn className="w-3.5 h-3.5 text-[#00F0FF]" />
+              Sign In
+            </Link>
+          )}
+
           <Link
             href="/upload"
             className="px-4 py-1.5 rounded-full text-xs font-semibold bg-white text-[#030407] hover:bg-[#00F0FF] transition-all shadow-[0_0_20px_rgba(0,240,255,0.25)]"
@@ -122,6 +168,14 @@ export default function Navigation() {
               </Link>
             );
           })}
+          <Link
+            href="/auth"
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[#00F0FF] hover:bg-white/5"
+          >
+            <LogIn className="w-4 h-4" />
+            {user ? `Account (${user.display_name || user.email})` : 'Sign In / Register'}
+          </Link>
         </div>
       )}
     </header>

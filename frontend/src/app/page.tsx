@@ -159,8 +159,14 @@ export default function LandingPage() {
 
         <div className="flex items-center gap-3">
           <Link
+            href="/auth"
+            className="px-4 py-2 rounded-full text-xs font-mono uppercase tracking-wider text-[#00F0FF] border border-cyan-400/35 hover:bg-cyan-400/10 transition-all"
+          >
+            Sign In
+          </Link>
+          <Link
             href="/dashboard"
-            className="px-4 py-2 rounded-full text-xs font-mono uppercase tracking-wider text-slate-200 border border-white/15 hover:border-[#00F0FF]/60 transition-all"
+            className="hidden md:inline-flex px-4 py-2 rounded-full text-xs font-mono uppercase tracking-wider text-slate-200 border border-white/15 hover:border-[#00F0FF]/60 transition-all"
           >
             Command Center
           </Link>

@@ -1,5 +1,18 @@
 import { API_BASE } from './constants';
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  display_name?: string | null;
+  created_at: string;
+}
+
+export interface AuthTokenResponse {
+  access_token: string;
+  token_type: string;
+  user: UserProfile;
+}
+
 export interface MatchItem {
   id: string;
   title: string | null;
@@ -155,7 +168,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json');
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const cleanPath = path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path;
+  const res = await fetch(`${API_BASE}${cleanPath}`, {
     ...options,
     headers,
   });
@@ -187,8 +201,66 @@ export function resolveVideoUrl(videoUrl?: string | null): string | null {
   return `${API_BASE}${videoUrl.startsWith('/') ? '' : '/'}${videoUrl}`;
 }
 
+export function getStoredUser(): UserProfile | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('cueiq_user');
+    return raw ? (JSON.parse(raw) as UserProfile) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredSession(token: string, user: UserProfile): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('cueiq_token', token);
+  localStorage.setItem('cueiq_user', JSON.stringify(user));
+  window.dispatchEvent(new Event('cueiq-auth-change'));
+}
+
+export function clearStoredSession(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('cueiq_token');
+  localStorage.removeItem('cueiq_user');
+  window.dispatchEvent(new Event('cueiq-auth-change'));
+}
+
 export const api = {
   health: () => request<{ status: string; service: string }>('/api/health'),
+
+  auth: {
+    register: async (
+      email: string,
+      password: string,
+      displayName?: string
+    ): Promise<AuthTokenResponse> => {
+      const res = await request<AuthTokenResponse>('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+          display_name: displayName || undefined,
+        }),
+      });
+      setStoredSession(res.access_token, res.user);
+      return res;
+    },
+
+    login: async (email: string, password: string): Promise<AuthTokenResponse> => {
+      const res = await request<AuthTokenResponse>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      setStoredSession(res.access_token, res.user);
+      return res;
+    },
+
+    me: () => request<UserProfile>('/api/auth/me'),
+
+    logout: () => {
+      clearStoredSession();
+    },
+  },
 
   matches: {
     upload: async (
@@ -222,7 +294,7 @@ export const api = {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               resolve(JSON.parse(xhr.responseText));
-            } catch (e) {
+            } catch {
               reject(new Error('Invalid response from upload server'));
             }
           } else {
@@ -235,12 +307,12 @@ export const api = {
           }
         };
 
-        xhr.onerror = () => reject(new Error('Network error while uploading video to backend'));
+        xhr.onerror = () => reject(new Error('Network error while uploading video'));
         xhr.send(formData);
       });
     },
 
-    list: () => request<MatchListResponse>('/api/matches/'),
+    list: () => request<MatchListResponse>('/api/matches'),
     get: (id: string) => request<AnalysisResponse>(`/api/matches/${encodeURIComponent(id)}`),
     getSample: () => request<AnalysisResponse>('/api/matches/sample'),
     getStatus: (id: string) =>
