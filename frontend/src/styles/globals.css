@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+    background-color: #030407;
+    color: #F8FAFC;
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #030407;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+    background-size: 64px 64px;
+    color: #F8FAFC;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: rgba(0, 240, 255, 0.28);
+    color: #ffffff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #030407;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1E293B;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00F0FF;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: linear-gradient(165deg, rgba(11, 15, 25, 0.86) 0%, rgba(5, 7, 13, 0.94) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 24px 60px -20px rgba(0, 0, 0, 0.9);
+  }
+
+  .glass-panel-interactive {
+    background: linear-gradient(165deg, rgba(12, 16, 28, 0.82) 0%, rgba(6, 8, 15, 0.92) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-panel-interactive:hover {
+    border-color: rgba(0, 240, 255, 0.38);
+    background: linear-gradient(165deg, rgba(15, 23, 42, 0.88) 0%, rgba(8, 11, 20, 0.96) 100%);
+    box-shadow: inset 0 1px 0 0 rgba(0, 240, 255, 0.18), 0 24px 48px -15px rgba(0, 240, 255, 0.12);
+    transform: translateY(-2px);
+  }
+
+  .editorial-border {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .text-emerald-gradient {
+    background: linear-gradient(135deg, #FFFFFF 0%, #94A3B8 35%, #00F0FF 75%, #8B5CF6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-silver-gradient {
+    background: linear-gradient(180deg, #FFFFFF 0%, #94A3B8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* High-contrast Futuristic Titanium Primary Button */
+  .btn-cue-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    background: #F8FAFC;
+    color: #030407;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.875rem 1.85rem;
+    border-radius: 9999px;
+    border: 1px solid #FFFFFF;
+    box-shadow: 0 0 30px -5px rgba(0, 240, 255, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .btn-cue-primary:hover {
+    background: #00F0FF;
+    border-color: #00F0FF;
+    color: #030407;
+    transform: translateY(-1px);
+    box-shadow: 0 0 40px -2px rgba(0, 240, 255, 0.75);
+  }
+
+  .btn-cue-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    background: rgba(11, 15, 25, 0.75);
+    backdrop-filter: blur(16px);
+    color: #F8FAFC;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 0.875rem 1.85rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .btn-cue-secondary:hover {
+    border-color: rgba(0, 240, 255, 0.55);
+    background: rgba(0, 240, 255, 0.08);
+    color: #FFFFFF;
+    box-shadow: 0 0 25px -5px rgba(0, 240, 255, 0.25);
+  }
+
+  .kicker-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+    color: #00F0FF;
+  }
+
+  .stat-value {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/venv/
+backend/.venv/
+
+# Next.js build output
+frontend/.next/
+frontend/out/
+
+# Python cache & local DB
+__pycache__/
+*.py[cod]
+*$py.class
+backend/cueiq.db
+backend/cueiq.db-journal
+
+# Environment & OS files
+.DS_Store
+*.pem
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
