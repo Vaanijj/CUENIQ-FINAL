@@ -1,12 +1,12 @@
 # Dependencies
 node_modules/
-frontend/node_modules/
+package-lock.json
 backend/venv/
 backend/.venv/
 
 # Next.js build output
-frontend/.next/
-frontend/out/
+.next/
+out/
 
 # Python cache & local DB
 __pycache__/

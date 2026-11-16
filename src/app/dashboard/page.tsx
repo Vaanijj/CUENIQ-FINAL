@@ -5,23 +5,33 @@ import Link from 'next/link';
 import Navigation from '@/components/ui/Navigation';
 import IntelligenceOrb from '@/components/orb/IntelligenceOrb';
 import { ORB_STATES } from '@/lib/constants';
-import { api, type MatchItem, type AnalyticsOverviewResponse } from '@/lib/api';
+import {
+  api,
+  getStoredUser,
+  type UserProfile,
+  type MatchItem,
+  type AnalyticsOverviewResponse,
+} from '@/lib/api';
 import {
   ArrowUpRight,
   BarChart3,
   Clock,
+  LogIn,
   MessageSquare,
   PlayCircle,
   Sparkles,
   UploadCloud,
+  UserCheck,
 } from 'lucide-react';
 
 export default function CommandCenterPage() {
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsOverviewResponse | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setUser(getStoredUser());
     let mounted = true;
     async function load() {
       try {
@@ -55,6 +65,20 @@ export default function CommandCenterPage() {
             <div className="lg:col-span-8 space-y-4">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="kicker-label">Command Center</span>
+                {user ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-cyan-400/15 text-[#00F0FF] border border-cyan-400/35 flex items-center gap-1.5">
+                    <UserCheck className="w-3 h-3" />
+                    Signed in as {user.display_name || user.email} ({user.email})
+                  </span>
+                ) : (
+                  <Link
+                    href="/auth"
+                    className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-cyan-400/15 text-[#00F0FF] border border-cyan-400/35 hover:bg-cyan-400/25 flex items-center gap-1.5"
+                  >
+                    <LogIn className="w-3 h-3" />
+                    Sign In with Email to Sync Cloud Profile
+                  </Link>
+                )}
                 {analytics?.is_sample && (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-amber-500/15 text-amber-300 border border-amber-400/35">
                     Sample Benchmark Active (No Uploaded Matches Yet)

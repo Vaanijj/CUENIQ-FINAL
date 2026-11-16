@@ -229,11 +229,10 @@ export default function LandingPage() {
             </Link>
 
             <Link
-              href="/analysis?sample=true"
-              className="px-4 py-2.5 text-xs font-mono uppercase tracking-[0.18em] text-slate-400 hover:text-[#00F0FF] flex items-center gap-2 transition-colors"
+              href="/auth"
+              className="px-4 py-2.5 text-xs font-mono uppercase tracking-[0.18em] text-[#00F0FF] hover:text-white border border-cyan-400/35 rounded-full flex items-center gap-2 transition-colors"
             >
-              <Play className="w-3.5 h-3.5 text-[#00F0FF]" />
-              Launch Sample Frame
+              Sign In with Email
             </Link>
           </div>
 
